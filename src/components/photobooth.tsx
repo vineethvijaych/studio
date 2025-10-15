@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, Printer, RefreshCw, VideoOff, Wind } from 'lucide-react';
+import { Camera, Printer, RefreshCw, VideoOff, Wind, Waves } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -13,6 +14,7 @@ const COUNTDOWN_TIME = 3;
 const PHOTO_ASPECT_RATIO = 4 / 3;
 const PHOTO_WIDTH = 640;
 const PHOTO_HEIGHT = PHOTO_WIDTH / PHOTO_ASPECT_RATIO;
+const COLLAGE_PADDING = 20;
 
 export function PhotoBooth() {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -25,6 +27,7 @@ export function PhotoBooth() {
     const [countdown, setCountdown] = useState<number>(0);
     const [activeFilter, setActiveFilter] = useState<FilterType>(filters[0]);
     const [error, setError] = useState<string | null>(null);
+    const [isFlashing, setIsFlashing] = useState(false);
 
     const { toast } = useToast()
 
@@ -75,8 +78,25 @@ export function PhotoBooth() {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        canvas.width = PHOTO_WIDTH;
-        canvas.height = PHOTO_HEIGHT * PHOTO_COUNT;
+        const headerHeight = 80;
+        const totalHeight = (PHOTO_HEIGHT * PHOTO_COUNT) + (COLLAGE_PADDING * (PHOTO_COUNT + 1)) + headerHeight;
+        
+        canvas.width = PHOTO_WIDTH + (COLLAGE_PADDING * 2);
+        canvas.height = totalHeight;
+
+        // White background
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Header
+        ctx.fillStyle = '#f0f4ff'; // A light blueish background for header
+        ctx.fillRect(0, 0, canvas.width, headerHeight);
+        ctx.font = 'bold 36px Poppins';
+        ctx.fillStyle = 'hsl(var(--primary))';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText("BeachSnap", canvas.width / 2, headerHeight / 2);
+
 
         const imagePromises = photos.map(src => {
             return new Promise<HTMLImageElement>((resolve, reject) => {
@@ -89,7 +109,8 @@ export function PhotoBooth() {
 
         Promise.all(imagePromises).then(images => {
             images.forEach((img, index) => {
-                ctx.drawImage(img, 0, index * PHOTO_HEIGHT, PHOTO_WIDTH, PHOTO_HEIGHT);
+                const y = headerHeight + COLLAGE_PADDING + (index * (PHOTO_HEIGHT + COLLAGE_PADDING));
+                ctx.drawImage(img, COLLAGE_PADDING, y, PHOTO_WIDTH, PHOTO_HEIGHT);
             });
             setCollageUrl(canvas.toDataURL('image/jpeg'));
             setStatus('review');
@@ -103,6 +124,10 @@ export function PhotoBooth() {
 
     const takePhoto = useCallback(() => {
         if (!videoRef.current || !photoCanvasRef.current) return null;
+        
+        setIsFlashing(true);
+        setTimeout(() => setIsFlashing(false), 150);
+
         const video = videoRef.current;
         const canvas = photoCanvasRef.current;
         const ctx = canvas.getContext('2d');
@@ -110,8 +135,13 @@ export function PhotoBooth() {
 
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
+
+        ctx.save();
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
         ctx.filter = activeFilter.style.filter || 'none';
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
         
         return canvas.toDataURL('image/jpeg');
     }, [activeFilter]);
@@ -131,9 +161,15 @@ export function PhotoBooth() {
                     setCountdown(count);
                     if (count === 0) {
                         clearInterval(interval);
-                        const photoData = takePhoto();
-                        if(photoData) photos.push(photoData);
-                        resolve();
+                        
+                        // Small pause before taking photo
+                        setTimeout(() => {
+                            const photoData = takePhoto();
+                            if(photoData) photos.push(photoData);
+                            
+                            // Small pause after taking photo before next countdown
+                            setTimeout(() => resolve(), 500); 
+                        }, 200);
                     }
                 }, 1000);
             });
@@ -156,7 +192,7 @@ export function PhotoBooth() {
     return (
         <Card className="w-full overflow-hidden shadow-2xl">
             <CardContent className="p-2">
-                <div className="relative w-full" style={{ aspectRatio: `${PHOTO_WIDTH}/${PHOTO_HEIGHT}` }}>
+                <div className="relative w-full bg-secondary" style={{ aspectRatio: `${PHOTO_WIDTH + COLLAGE_PADDING * 2}/${(PHOTO_HEIGHT * PHOTO_COUNT) + (COLLAGE_PADDING * (PHOTO_COUNT + 1)) + 80}` }}>
                     {status !== 'review' && (
                         <>
                             <video
@@ -167,6 +203,9 @@ export function PhotoBooth() {
                                 className="w-full h-full object-cover rounded-md"
                                 style={{ ...activeFilter.style, transform: 'scaleX(-1)' }}
                             />
+                             {isFlashing && (
+                                <div className="absolute inset-0 bg-white opacity-80 animate-ping" style={{ animationDuration: '150ms' }}></div>
+                            )}
                              {status === 'error' && (
                                 <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white p-4 rounded-md">
                                     <VideoOff className="w-16 h-16 text-destructive mb-4" />
@@ -185,8 +224,8 @@ export function PhotoBooth() {
                     )}
 
                     {status === 'review' && collageUrl && (
-                        <div className="printable-area bg-secondary rounded-md">
-                            <img src={collageUrl} alt="Photo collage" className="w-full h-full object-contain" />
+                        <div className="printable-area bg-secondary rounded-md flex items-center justify-center h-full">
+                            <img src={collageUrl} alt="Photo collage" className="w-auto h-full object-contain" />
                         </div>
                     )}
 
@@ -198,7 +237,7 @@ export function PhotoBooth() {
                     <div className="mt-4">
                         <div className="mb-4">
                             <p className="text-center text-sm font-semibold text-muted-foreground mb-2">Choose a Filter</p>
-                            <div className="grid grid-cols-4 gap-2">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 {filters.map(filter => (
                                     <Button
                                         key={filter.id}
@@ -206,7 +245,7 @@ export function PhotoBooth() {
                                         onClick={() => setActiveFilter(filter)}
                                         className="h-12 text-xs sm:text-sm"
                                     >
-                                        {filter.id === 'sunset' && <Wind className="w-4 h-4 mr-1 sm:mr-2"/>}
+                                        {filter.icon}
                                         {filter.name}
                                     </Button>
                                 ))}
@@ -249,3 +288,5 @@ export function PhotoBooth() {
         </Card>
     );
 }
+
+    
