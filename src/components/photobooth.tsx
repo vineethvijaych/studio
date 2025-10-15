@@ -190,7 +190,7 @@ export function PhotoBooth() {
     };
     
     return (
-        <Card className="w-full overflow-hidden shadow-2xl">
+        <Card className="w-full overflow-hidden shadow-2xl no-print">
             <CardContent className="p-2">
                 <div className="relative w-full bg-secondary" style={{ aspectRatio: `${PHOTO_WIDTH + COLLAGE_PADDING * 2}/${(PHOTO_HEIGHT * PHOTO_COUNT) + (COLLAGE_PADDING * (PHOTO_COUNT + 1)) + 80}` }}>
                     {status !== 'review' && (
@@ -224,7 +224,7 @@ export function PhotoBooth() {
                     )}
 
                     {status === 'review' && collageUrl && (
-                        <div className="printable-area bg-secondary rounded-md flex items-center justify-center h-full">
+                        <div className="bg-secondary rounded-md flex items-center justify-center h-full">
                             <img src={collageUrl} alt="Photo collage" className="w-auto h-full object-contain" />
                         </div>
                     )}
@@ -288,5 +288,3 @@ export function PhotoBooth() {
         </Card>
     );
 }
-
-    

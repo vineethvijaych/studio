@@ -22,6 +22,8 @@ export default function RootLayout({
       <body className="font-body antialiased">
         {children}
         <Toaster />
+        {/* This div is used for printing the collage */}
+        <div className="printable-area"></div>
       </body>
     </html>
   );

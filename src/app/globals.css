@@ -72,6 +72,12 @@ body {
 }
 
 @media print {
+  body {
+    background: white !important;
+  }
+  .no-print {
+    display: none;
+  }
   body * {
     visibility: hidden;
   }
@@ -79,17 +85,20 @@ body {
     visibility: visible;
   }
   .printable-area {
-    position: absolute;
+    position: fixed;
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
     padding: 0;
     margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
-  .printable-area img {
-    width: 100%;
-    height: 100%;
+   .printable-area img {
+    max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
   }
 }
